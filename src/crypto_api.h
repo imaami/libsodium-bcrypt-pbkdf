@@ -40,4 +40,10 @@ static inline int really_crypto_hash_sha512( unsigned char       *out,
 	really_crypto_hash_sha512(out, (const unsigned char *)(in), inlen)
 }
 
+// If explicit_bzero() isn't available sodium_memzero() works as a drop-in.
+#ifndef HAVE_EXPLICIT_BZERO
+# undef explicit_bzero
+# define explicit_bzero(s, n) sodium_memzero(s, n)
+#endif
+
 #endif // _CRYPTO_API_H_
