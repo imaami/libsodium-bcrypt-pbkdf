@@ -27,119 +27,61 @@ extern "C" {
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
-#include <inttypes.h>
 #include <sodium.h>
 
-#include <openssl/conf.h>
-#include <openssl/evp.h>
-#include <openssl/err.h>
-
-#include "sodium_bcrypt_pbkdf.h"
+#include "sshkey.h"
 #include "hexdump.h"
 
-__attribute__((always_inline))
-static inline int decrypt( uint8_t *ciphertext, size_t ciphertext_len,
-                           uint8_t *key, uint8_t *iv, uint8_t *plaintext );
+static const char EXAMPLE_ED25519_KEY[] =
+    "-----BEGIN OPENSSH PRIVATE KEY-----\n"
+    "b3BlbnNzaC1rZXktdjEAAAAACmFlczI1Ni1jYmMAAAAGYmNyeXB0AAAAGAAAABBQiEncSN\n"
+    "XufpFQBYcZgzG0AAAAEAAAAAEAAAAzAAAAC3NzaC1lZDI1NTE5AAAAIJSDa2FIQAqjANN8\n"
+    "DapA8hP7MqzblNqMTq0TR4mIpYduAAAAoBNPDJDkoq8qvPQrzASUnJsKZfhqnkeT8xw44v\n"
+    "CENLCNBp2+++/NbJBbUoqTr99nvO+nwYlceTUc9nSF8HpHAH35HxyTfxOocutZoz/mdqHJ\n"
+    "zlqeVodBa8T94NQiYG/AhMd7rwpalh27mpGf5Dxv4Bty/9Zb3HZvNZ5+wYObnYJQTIyw7o\n"
+    "YVyTQVfW1TTw5HBnTsMzVnTprhJmsQTgKVESI=\n"
+    "-----END OPENSSH PRIVATE KEY-----\n";
 
 int main( int    argc,
           char **argv )
 {
-	if (argc < 2 || argv[1] == NULL || sodium_init() == -1) {
+	(void)argc;
+	(void)argv;
+
+	if (sodium_init() == -1) {
 		return EXIT_FAILURE;
 	}
 
-	uint8_t salt[16];
-	uint8_t hash[48];
+	uint8_t buf[256];
+	uint8_t *public = &buf[0];
+	uint8_t *secret = public + 32;
+	char *comment = (char *)(secret + 64);
+	size_t comment_len = sizeof(buf) - (32u + 64u);
 
-	memset(&salt[0], 0, sizeof(salt)); // Obviously not a decent salt
-	memset(&hash[0], 0, sizeof(hash));
-
-
-	int r = sodium_bcrypt_pbkdf(argv[1], strlen(argv[1]),
-	                            salt, sizeof(salt),
-	                            hash, sizeof(hash), 16);
-
-	uint8_t *key = &hash[0], *iv = &hash[32];
-
-	// Obviously not actual ciphertext (but who knows, right?)
-	uint8_t ciphertext[] = {
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-	};
-	uint8_t plaintext[BUFSIZ] = { '\0' };
+	memset(&buf[0], 0, sizeof(buf));
 
 	puts("+------+----------------------------------------------------+----------------+");
-	hexdump((const uint8_t *)salt, sizeof(salt), "salt", 4);
+	hexdump((const uint8_t *)&EXAMPLE_ED25519_KEY[0],
+	        sizeof(EXAMPLE_ED25519_KEY) - 1u, "file", 4);
 	puts("+------+----------------------------------------------------+----------------+");
-	hexdump((const uint8_t *)key, 32, "key ", 4);
-	puts("+------+----------------------------------------------------+----------------+");
-	hexdump((const uint8_t *)iv, 16, "iv  ", 4);
-	puts("+------+----------------------------------------------------+----------------+");
-	hexdump((const uint8_t *)ciphertext, sizeof(ciphertext), "enc ", 4);
 
-	r = decrypt(ciphertext, sizeof(ciphertext), key, iv, plaintext);
-	if (r > 0) {
+	if (!sshkey_parse((const uint8_t *)&EXAMPLE_ED25519_KEY[0],
+	                  sizeof(EXAMPLE_ED25519_KEY) - 1, "example",
+	                  public, secret, comment, comment_len)) {
+		return EXIT_FAILURE;
+	}
+
+	hexdump((const uint8_t *)public, 32u, "pub ", 4);
+	puts("+------+----------------------------------------------------+----------------+");
+	hexdump((const uint8_t *)secret, 64u, "sec ", 4);
+	puts("+------+----------------------------------------------------+----------------+");
+
+	if ((comment_len = strlen(comment)) > 0u) {
+		hexdump((const uint8_t *)comment, comment_len, "com ", 4);
 		puts("+------+----------------------------------------------------+----------------+");
-		hexdump((const uint8_t *)plaintext, (size_t)r, "dec ", 4);
 	}
 
-	puts("+------+----------------------------------------------------+----------------+");
-
-	return (r == -1) ? EXIT_FAILURE : EXIT_SUCCESS;
-}
-
-__attribute__((always_inline))
-static inline int decrypt( uint8_t *ciphertext, size_t ciphertext_len,
-                           uint8_t *key, uint8_t *iv, uint8_t *plaintext )
-{
-	EVP_CIPHER_CTX *ctx = NULL;
-	int len = 0, plaintext_len = 0;
-
-	if (!(ctx = EVP_CIPHER_CTX_new())) {
-		ERR_print_errors_fp(stderr);
-		return -1;
-	}
-
-	if (EVP_DecryptInit_ex(ctx, EVP_aes_256_ctr(), NULL, key, iv) != 1) {
-		ERR_print_errors_fp(stderr);
-		return -1;
-	}
-
-	if (EVP_DecryptUpdate(ctx, plaintext, &len,
-	                      ciphertext, (int)ciphertext_len) != 1) {
-		ERR_print_errors_fp(stderr);
-		return -1;
-	}
-
-	plaintext_len = len;
-
-	if (EVP_DecryptFinal_ex(ctx, plaintext + len, &len) != 1) {
-		ERR_print_errors_fp(stderr);
-		return -1;
-	}
-
-	plaintext_len += len;
-
-	/* Clean up */
-	EVP_CIPHER_CTX_free(ctx);
-
-	return plaintext_len;
+	return EXIT_SUCCESS;
 }
 
 #ifdef __cplusplus
