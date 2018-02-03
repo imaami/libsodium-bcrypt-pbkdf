@@ -1,10 +1,17 @@
+CC := gcc
+CFLAGS := -std=gnu11 -Og -ggdb -pipe -Wall -Wextra
+
+LIBSODIUM_CFLAGS = $(shell pkg-config --cflags libsodium)
+LIBSODIUM_LIBS = $(shell pkg-config --libs libsodium)
+
+LIBCRYPTO_CFLAGS = $(shell pkg-config --cflags libcrypto)
+LIBCRYPTO_LIBS = $(shell pkg-config --libs libcrypto)
+
 BIN := sodium-bcrypt-pbkdf-test
 OBJ := sodium_bcrypt_pbkdf_test.o hexdump.o
 
-DEP := libsodium libcrypto
-
-INC = -I../include $(shell pkg-config --cflags $(DEP))
-LIB = ../src/libsodium-bcrypt-pbkdf.a $(shell pkg-config --libs $(DEP))
+INC = -I../include $(LIBSODIUM_CFLAGS) $(LIBCRYPTO_CFLAGS)
+LIB = ../src/libsodium-bcrypt-pbkdf.a $(LIBSODIUM_LIBS) $(LIBCRYPTO_LIBS)
 
 all: $(BIN)
 

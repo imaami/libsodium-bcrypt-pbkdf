@@ -1,3 +1,10 @@
+AR := ar
+CC := gcc
+OBJCOPY := objcopy
+CFLAGS := -std=gnu11 -Og -ggdb -pipe -Wall -Wextra
+
+LIBSODIUM_CFLAGS = $(shell pkg-config --cflags libsodium)
+
 BIN := libsodium-bcrypt-pbkdf.a
 OBJ := openbsd-compat/bcrypt_pbkdf.o openbsd-compat/blowfish.o
 CLN := $(BIN) $(OBJ) sodium_bcrypt_pbkdf.o
@@ -7,7 +14,7 @@ OBJ += sodium_bcrypt_pbkdf.o
 endif
 
 override OPENBSD_COMPAT_CFLAGS := $(CFLAGS) -I.
-override BCRYPT_PBKDF_CFLAGS = $(shell pkg-config --cflags libsodium)
+override BCRYPT_PBKDF_CFLAGS = $(LIBSODIUM_CFLAGS)
 
 ifeq ($(strip $(HAVE_EXPLICIT_BZERO)),1)
 override BCRYPT_PBKDF_CFLAGS += -DHAVE_EXPLICIT_BZERO=1
