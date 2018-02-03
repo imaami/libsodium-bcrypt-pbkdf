@@ -55,8 +55,9 @@ static inline size_t hexdump_ascii_byte( char    *dst,
                                          bool    *prt )
 {
 	size_t i = 0;
+	bool vbar = (src == (uint8_t)'|');
 
-	if (src > UINT8_C(0x1f) && src < UINT8_C(0x7f)) {
+	if ((src > UINT8_C(0x1f)) && (src < UINT8_C(0x7f)) && !vbar) {
 		// This byte is a printable character
 		if (!*prt) {
 			// Previous byte was a non-printable character
@@ -79,7 +80,7 @@ static inline size_t hexdump_ascii_byte( char    *dst,
 			dst[i++] = 'm';
 			*prt = false;
 		}
-		dst[i++] = '.';
+		dst[i++] = (vbar) ? '|' : '.';
 	}
 
 	return i;
@@ -125,6 +126,10 @@ static size_t hexdump_line( char          *dst,
 			dst[pos++] = '[';
 			dst[pos++] = '0';
 			dst[pos++] = 'm';
+		}
+
+		for (; i < 16u; ++i) {
+			dst[pos++] = ' ';
 		}
 
 		dst[pos++] = '|';
