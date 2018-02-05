@@ -447,46 +447,47 @@ static uint8_t *sshkey_decrypt( int      cipher,
                                 uint8_t *dec,
                                 size_t  *dec_len )
 {
-	EVP_CIPHER_CTX *ctx = NULL;
-	int len = 0, _dec_len = 0;
-
 	if (cipher == SSHKEY_CIPHER_TYPE_NONE) {
 		*dec_len = enc_len;
 		return enc;
 	}
 
-	if (!(ctx = EVP_CIPHER_CTX_new())) {
-		return NULL;
-	}
+	uint8_t *ret = NULL;
+	EVP_CIPHER_CTX ctx;
 
-	if (EVP_DecryptInit_ex(ctx, (cipher == SSHKEY_CIPHER_TYPE_AES256CBC)
-	                            ? EVP_aes_256_cbc()
-	                            : EVP_aes_256_ctr(),
-	                    NULL, key, iv) != 1) {
-		return NULL;
-	}
+	EVP_CIPHER_CTX_init(&ctx);
 
-	if (!(enc_len & 15u)) {
-		(void)EVP_CIPHER_CTX_set_padding(ctx, 0);
-	}
+	do {
+		int _len1 = 0, _len2 = 0;
 
-	if (EVP_DecryptUpdate(ctx, dec, &len, enc, (int)enc_len) != 1) {
-		return NULL;
-	}
+		if (EVP_DecryptInit_ex(&ctx,
+		                       (cipher == SSHKEY_CIPHER_TYPE_AES256CBC)
+		                       ? EVP_aes_256_cbc()
+		                       : EVP_aes_256_ctr(),
+		                       NULL, key, iv) != 1) {
+			break;
+		}
 
-	_dec_len = len;
+		if (!(enc_len & 15u)) {
+			(void)EVP_CIPHER_CTX_set_padding(&ctx, 0);
+		}
 
-	if (EVP_DecryptFinal_ex(ctx, dec + len, &len) != 1) {
-		return NULL;
-	}
+		if (EVP_DecryptUpdate(&ctx, dec, &_len1,
+		                      enc, (int)enc_len) != 1) {
+			break;
+		}
 
-	_dec_len += len;
+		if (EVP_DecryptFinal_ex(&ctx, dec + _len1, &_len2) != 1) {
+			break;
+		}
 
-	/* Clean up */
-	EVP_CIPHER_CTX_free(ctx);
+		*dec_len = (size_t)(_len1 + _len2);
+		ret = dec;
+	} while(0);
 
-	*dec_len = (size_t)_dec_len;
-	return dec;
+	EVP_CIPHER_CTX_cleanup(&ctx);
+
+	return ret;
 }
 
 static uint8_t *sshkey_get_public( uint8_t **data,
