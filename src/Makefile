@@ -9,24 +9,15 @@ LIBSODIUM_CFLAGS = $(shell pkg-config --cflags libsodium)
 # case a wrapper function will be built instead of redefining an existing one.
 NO_REDEFINE_SYM := 0
 
-# If you don't have explicit_bzero() you can run 'make HAVE_EXPLICIT_BZERO=0'
-# instead of commenting out this line.
-HAVE_EXPLICIT_BZERO := 1
-
-BIN := libsodium-bcrypt-pbkdf.a
-OBJ := openbsd-compat/bcrypt_pbkdf.o openbsd-compat/blowfish.o
-CLN := $(BIN) $(OBJ) sodium_bcrypt_pbkdf.o
+override BIN := libsodium-bcrypt-pbkdf.a
+override OBJ := openbsd-compat/bcrypt_pbkdf.o openbsd-compat/blowfish.o
+override CLN := $(BIN) $(OBJ) sodium_bcrypt_pbkdf.o
 
 ifeq ($(strip $(NO_REDEFINE_SYM)),1)
-OBJ += sodium_bcrypt_pbkdf.o
+override OBJ += sodium_bcrypt_pbkdf.o
 endif
 
 override OPENBSD_COMPAT_CFLAGS := $(CFLAGS) -I.
-override BCRYPT_PBKDF_CFLAGS = $(LIBSODIUM_CFLAGS)
-
-ifeq ($(strip $(HAVE_EXPLICIT_BZERO)),1)
-override BCRYPT_PBKDF_CFLAGS += -DHAVE_EXPLICIT_BZERO=1
-endif
 
 all: $(BIN)
 
@@ -38,8 +29,8 @@ sodium_bcrypt_pbkdf.o: sodium_bcrypt_pbkdf.c
 	$(CC) -o $@ -c $(CFLAGS) $<
 endif
 
-openbsd-compat/bcrypt_pbkdf.o: openbsd-compat/bcrypt_pbkdf.c
-	$(CC) -o $@ -c $(OPENBSD_COMPAT_CFLAGS) $(BCRYPT_PBKDF_CFLAGS) $<
+openbsd-compat/bcrypt_pbkdf.o: openbsd-compat/bcrypt_pbkdf.c check-explicit-bzero
+	$(CC) -o $@ -c $(OPENBSD_COMPAT_CFLAGS) $(LIBSODIUM_CFLAGS) $(EXPLICIT_BZERO_CFLAGS) $<
 ifneq ($(strip $(NO_REDEFINE_SYM)),1)
 	$(OBJCOPY) --redefine-sym bcrypt_pbkdf=sodium_bcrypt_pbkdf $@
 endif
@@ -50,3 +41,22 @@ openbsd-compat/blowfish.o: openbsd-compat/blowfish.c
 .PHONY: clean
 clean:
 	rm -f $(CLN)
+
+# Run 'make HAVE_EXPLICIT_BZERO=0' to force using libsodium's sodium_memzero().
+.PHONY: check-explicit-bzero
+check-explicit-bzero:
+	$(eval override EXPLICIT_BZERO_CFLAGS:=$(shell\
+	  V='$(strip $(HAVE_EXPLICIT_BZERO))';\
+	  if [ x"$$V" = 'x1' ]; then\
+	    echo -n -DHAVE_EXPLICIT_BZERO=1;\
+	  elif [ x"$$V" != 'x0' ]; then\
+	    echo -n 'Checking for explicit_bzero... ' >&2;\
+	    echo '#include <string.h>\nint main(void){int i;explicit_bzero(&i,sizeof(i));return i;}'\
+	    | $(CC) -xc -O0 -o/dev/null - 2>/dev/null; V=$$?;\
+	    if [ x"$$V" = 'x0' ]; then\
+	      echo 'yes' >&2;\
+	      echo -n -DHAVE_EXPLICIT_BZERO=1;\
+	    else\
+	      echo 'no' >&2;\
+	    fi;\
+	  fi))

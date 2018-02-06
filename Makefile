@@ -13,14 +13,10 @@ LIBCRYPTO_LIBS = $(shell pkg-config --libs libcrypto)
 # case a wrapper function will be built instead of redefining an existing one.
 NO_REDEFINE_SYM := 0
 
-# If you don't have explicit_bzero() you can run 'make HAVE_EXPLICIT_BZERO=0'
-# instead of commenting out this line.
-HAVE_EXPLICIT_BZERO := 1
-
 all: lib test
 
 .PHONY: lib
-lib:
+lib: check-explicit-bzero
 	+$(MAKE) -C src \
 		AR="$(AR)" \
 		CC="$(CC)" \
@@ -31,14 +27,15 @@ lib:
 		HAVE_EXPLICIT_BZERO="$(HAVE_EXPLICIT_BZERO)"
 
 .PHONY: test
-test: lib
+test: lib check-explicit-bzero
 	+$(MAKE) -C test \
 		CC="$(CC)" \
 		CFLAGS="$(CFLAGS)" \
 		LIBSODIUM_CFLAGS="$(LIBSODIUM_CFLAGS)" \
 		LIBCRYPTO_CFLAGS="$(LIBCRYPTO_CFLAGS)" \
 		LIBSODIUM_LIBS="$(LIBSODIUM_LIBS)" \
-		LIBCRYPTO_LIBS="$(LIBCRYPTO_LIBS)"
+		LIBCRYPTO_LIBS="$(LIBCRYPTO_LIBS)" \
+		HAVE_EXPLICIT_BZERO="$(HAVE_EXPLICIT_BZERO)"
 
 clean: clean-lib clean-test
 
@@ -49,3 +46,22 @@ clean-lib:
 .PHONY: clean-test
 clean-test:
 	+$(MAKE) -C test clean
+
+# Run 'make HAVE_EXPLICIT_BZERO=0' to force using libsodium's sodium_memzero().
+.PHONY: check-explicit-bzero
+check-explicit-bzero:
+	$(eval override HAVE_EXPLICIT_BZERO:=$(shell\
+	  V='$(strip $(HAVE_EXPLICIT_BZERO))';\
+	  if [ x"$$V" != 'x0' -a x"$$V" != 'x1' ]; then\
+	    echo -n 'Checking for explicit_bzero... ' >&2;\
+	    echo '#include <string.h>\nint main(void){int i;explicit_bzero(&i,sizeof(i));return i;}'\
+	    | $(CC) -xc -O0 -o/dev/null - 2>/dev/null; R=$$?;\
+	    if [ x"$$R" = 'x0' ]; then\
+	      echo 'yes' >&2;\
+	      V='1';\
+	    else\
+	      echo 'no' >&2;\
+	      V='0';\
+	    fi;\
+	  fi;\
+	  echo -n "$$V"))
