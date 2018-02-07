@@ -98,6 +98,13 @@ bool sshkey_parse( const uint8_t *buf,
 	const size_t head_len = sizeof(head) - 1u;
 	const size_t foot_len = sizeof(foot) - 1u;
 
+	// Sanity check arguments
+	if (!buf
+	    || (!public && !secret && !comment)
+	    || ((comment != NULL) != (comment_len > 0u))) {
+		return false;
+	}
+
 	while (len > 0u) {
 		switch (buf[0]) {
 		case (uint8_t)'\t':
@@ -182,12 +189,22 @@ bool sshkey_parse( const uint8_t *buf,
 			break;
 		}
 
+		if (public) {
+			memcpy(public, pub[0], 32u);
+		}
+
 		// Read secret key data, can be encrypted or not
 		uint32_t u32 = 0;
 		uint8_t *data = NULL;
 		if (!(data = sshkey_get_data(&bin, &len, &u32))) {
 			break;
 		}
+
+		if (!secret && !comment) {
+			ret = true;
+			break;
+		}
+
 		len = (size_t)u32;
 
 		if (kdf) {
@@ -228,13 +245,12 @@ bool sshkey_parse( const uint8_t *buf,
 		if (sec == NULL || u32 != 64u) {
 			break;
 		}
-		memcpy(secret, sec, 64u);
 
-		if (public) {
-			memcpy(public, pub[0], 32u);
+		if (secret) {
+			memcpy(secret, sec, 64u);
 		}
 
-		if (comment != NULL && comment_len > 0u) {
+		if (comment) {
 			uint8_t *com = sshkey_get_data(&data, &len, &u32);
 
 			if (com == NULL || u32 < 1u) {
