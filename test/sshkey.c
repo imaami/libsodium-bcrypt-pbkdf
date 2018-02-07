@@ -65,6 +65,10 @@ static inline int sshkey_get_kdf( uint8_t **data,
                                   size_t   *salt_len,
                                   size_t   *rounds );
 
+__attribute__((always_inline))
+static inline bool sshkey_skip_key_count( uint8_t **data,
+                                          size_t   *data_len );
+
 static uint8_t *sshkey_decrypt( int      cipher,
                                 uint8_t *enc,
                                 size_t   enc_len,
@@ -72,10 +76,6 @@ static uint8_t *sshkey_decrypt( int      cipher,
                                 uint8_t *iv,
                                 uint8_t *dec,
                                 size_t  *dec_len );
-
-static bool sshkey_get_u32be( uint8_t  **data,
-                              size_t    *data_len,
-                              uint32_t  *result );
 
 static uint8_t *sshkey_get_public( uint8_t **data,
                                    size_t   *data_len,
@@ -170,10 +170,8 @@ bool sshkey_parse( const uint8_t *buf,
 			break;
 		}
 
-		uint32_t u32 = 0;
-
-		// Key count must be exactly 1
-		if (!sshkey_get_u32be(&bin, &len, &u32) || u32 != 1u) {
+		// Sanity check key count
+		if (!sshkey_skip_key_count(&bin, &len)) {
 			break;
 		}
 
@@ -185,6 +183,7 @@ bool sshkey_parse( const uint8_t *buf,
 		}
 
 		// Read secret key data, can be encrypted or not
+		uint32_t u32 = 0;
 		uint8_t *data = NULL;
 		if (!(data = sshkey_get_data(&bin, &len, &u32))) {
 			break;
@@ -441,6 +440,14 @@ static inline int sshkey_get_kdf( uint8_t **data,
 	}
 
 	return kdf;
+}
+
+__attribute__((always_inline))
+static inline bool sshkey_skip_key_count( uint8_t **data,
+                                          size_t   *data_len )
+{
+	uint32_t n = 0;
+	return (sshkey_get_u32be(data, data_len, &n) && (n == UINT32_C(1)));
 }
 
 static uint8_t *sshkey_decrypt( int      cipher,
