@@ -50,8 +50,8 @@ static inline uint32_t sshkey_read_u32be( uint8_t *p )
 }
 
 __attribute((always_inline))
-static inline bool skip_key_magic( uint8_t **data,
-                                   size_t   *data_len );
+static inline bool sshkey_skip_key_magic( uint8_t **data,
+                                          size_t   *data_len );
 
 __attribute__((always_inline))
 static inline int sshkey_get_cipher( uint8_t **data,
@@ -147,7 +147,7 @@ bool sshkey_parse( const uint8_t *buf,
 			break;
 		}
 
-		if (!skip_key_magic(&bin, &len)) {
+		if (!sshkey_skip_key_magic(&bin, &len)) {
 			break;
 		}
 
@@ -260,8 +260,8 @@ bool sshkey_parse( const uint8_t *buf,
 }
 
 __attribute((always_inline))
-static inline bool skip_key_magic( uint8_t **data,
-                                   size_t   *data_len )
+static inline bool sshkey_skip_key_magic( uint8_t **data,
+                                          size_t   *data_len )
 {
 	const char magic[] = "openssh-key-v1";
 	uint8_t *ptr = *data;
