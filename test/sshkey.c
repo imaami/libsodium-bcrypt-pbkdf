@@ -192,6 +192,10 @@ bool sshkey_parse( const uint8_t *buf,
 		len = (size_t)u32;
 
 		if (kdf) {
+			if (!pass || !pass[0]) {
+				break;
+			}
+
 			(void)sodium_bcrypt_pbkdf(pass, strlen(pass), salt,
 			                          salt_len, bin, 48, rounds);
 
