@@ -212,8 +212,10 @@ bool sshkey_parse( const uint8_t *buf,
 				break;
 			}
 
-			(void)sodium_bcrypt_pbkdf(pass, strlen(pass), salt,
-			                          salt_len, bin, 48, rounds);
+			if (sodium_bcrypt_pbkdf(pass, strlen(pass), salt,
+			                        salt_len, bin, 48, rounds)) {
+				break;
+			}
 
 			uint8_t *key = bin;
 			uint8_t *iv = key + 32;
