@@ -26,17 +26,17 @@ $(BIN): $(OBJ)
 
 ifeq ($(strip $(NO_REDEFINE_SYM)),1)
 sodium_bcrypt_pbkdf.o: sodium_bcrypt_pbkdf.c
-	$(CC) -o $@ -c $(CFLAGS) $<
+	$(CC) -o $@ -fPIC -c $(CFLAGS) $<
 endif
 
 openbsd-compat/bcrypt_pbkdf.o: openbsd-compat/bcrypt_pbkdf.c check-explicit-bzero
-	$(CC) -o $@ -c $(OPENBSD_COMPAT_CFLAGS) $(LIBSODIUM_CFLAGS) $(EXPLICIT_BZERO_CFLAGS) $<
+	$(CC) -o $@ -fPIC -c $(OPENBSD_COMPAT_CFLAGS) $(LIBSODIUM_CFLAGS) $(EXPLICIT_BZERO_CFLAGS) $<
 ifneq ($(strip $(NO_REDEFINE_SYM)),1)
 	$(OBJCOPY) --redefine-sym bcrypt_pbkdf=sodium_bcrypt_pbkdf $@
 endif
 
 openbsd-compat/blowfish.o: openbsd-compat/blowfish.c
-	$(CC) -o $@ -c $(OPENBSD_COMPAT_CFLAGS) $<
+	$(CC) -o $@ -fPIC -c $(OPENBSD_COMPAT_CFLAGS) $<
 
 .PHONY: clean
 clean:
