@@ -24,13 +24,13 @@ clean:
 	rm -f $(BIN) $(OBJ)
 
 sodium_bcrypt_pbkdf_test.o: sodium_bcrypt_pbkdf_test.c
-	$(CC) -o $@ -c $(CFLAGS) $(LIBSODIUM_CFLAGS) $<
+	$(CC) -o $@ -fPIC -c $(CFLAGS) $(LIBSODIUM_CFLAGS) $<
 
 sshkey.o: sshkey.c check-explicit-bzero
-	$(CC) -o $@ -c $(CFLAGS) $(SSHKEY_CFLAGS) $(EXPLICIT_BZERO_CFLAGS) $<
+	$(CC) -o $@ -fPIC -c $(CFLAGS) $(SSHKEY_CFLAGS) $(EXPLICIT_BZERO_CFLAGS) $<
 
 hexdump.o: hexdump.c
-	$(CC) -o $@ -c $(CFLAGS) $<
+	$(CC) -o $@ -fPIC -c $(CFLAGS) $<
 
 # Run 'make HAVE_EXPLICIT_BZERO=0' to force using libsodium's sodium_memzero().
 .PHONY: check-explicit-bzero
