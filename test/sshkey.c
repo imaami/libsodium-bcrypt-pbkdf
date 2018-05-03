@@ -482,14 +482,22 @@ static uint8_t *sshkey_decrypt( int      cipher,
 	}
 
 	uint8_t *ret = NULL;
-	EVP_CIPHER_CTX ctx;
 
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+	EVP_CIPHER_CTX *ctx_ptr = EVP_CIPHER_CTX_new();
+	if (!ctx_ptr) {
+		return NULL;
+	}
+#else
+	EVP_CIPHER_CTX ctx;
 	EVP_CIPHER_CTX_init(&ctx);
+#	define ctx_ptr (&ctx)
+#endif
 
 	do {
 		int _len1 = 0, _len2 = 0;
 
-		if (EVP_DecryptInit_ex(&ctx,
+		if (EVP_DecryptInit_ex(ctx_ptr,
 		                       (cipher == SSHKEY_CIPHER_TYPE_AES256CBC)
 		                       ? EVP_aes_256_cbc()
 		                       : EVP_aes_256_ctr(),
@@ -498,15 +506,15 @@ static uint8_t *sshkey_decrypt( int      cipher,
 		}
 
 		if (!(enc_len & 15u)) {
-			(void)EVP_CIPHER_CTX_set_padding(&ctx, 0);
+			(void)EVP_CIPHER_CTX_set_padding(ctx_ptr, 0);
 		}
 
-		if (EVP_DecryptUpdate(&ctx, dec, &_len1,
+		if (EVP_DecryptUpdate(ctx_ptr, dec, &_len1,
 		                      enc, (int)enc_len) != 1) {
 			break;
 		}
 
-		if (EVP_DecryptFinal_ex(&ctx, dec + _len1, &_len2) != 1) {
+		if (EVP_DecryptFinal_ex(ctx_ptr, dec + _len1, &_len2) != 1) {
 			break;
 		}
 
@@ -514,7 +522,13 @@ static uint8_t *sshkey_decrypt( int      cipher,
 		ret = dec;
 	} while(0);
 
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+	EVP_CIPHER_CTX_free(ctx_ptr);
+	ctx_ptr = NULL;
+#else
+#	undef ctx_ptr
 	EVP_CIPHER_CTX_cleanup(&ctx);
+#endif
 
 	return ret;
 }
